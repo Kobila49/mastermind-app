@@ -50,15 +50,15 @@ public class XmlUtils {
                 Element gameMoveElement = doc.createElement("GameMove");
 
                 Element colorIndexElement = doc.createElement("ColorIndex");
-                colorIndexElement.setTextContent(gameMove.getColorIndex().toString());
+                colorIndexElement.setTextContent(gameMove.getColorIndex() != null ? gameMove.getColorIndex().toString() : null);
                 gameMoveElement.appendChild(colorIndexElement);
 
                 Element rowElement = doc.createElement("Row");
-                rowElement.setTextContent(gameMove.getRow().toString());
+                rowElement.setTextContent(gameMove.getRow() != null ? gameMove.getRow().toString() : null);
                 gameMoveElement.appendChild(rowElement);
 
                 Element columnElement = doc.createElement("Column");
-                columnElement.setTextContent(gameMove.getColumn().toString());
+                columnElement.setTextContent(gameMove.getColumn() != null ? gameMove.getColumn().toString() : null);
                 gameMoveElement.appendChild(columnElement);
 
                 Element gameMoveTypeElement = doc.createElement("GameMoveType");
@@ -86,12 +86,6 @@ public class XmlUtils {
             if (!Files.exists(outputPath.getParent())) {
                 Files.createDirectories(outputPath.getParent());
             }
-
-            // Log the XML content for debugging
-            StringWriter stringWriter = new StringWriter();
-            StreamResult debugResult = new StreamResult(stringWriter);
-            transformer.transform(source, debugResult);
-            log.info("XML Content: \n{}", stringWriter);
 
             // Write the document to the file
             try (FileWriter writer = new FileWriter(outputPath.toFile())) {
@@ -128,11 +122,11 @@ public class XmlUtils {
                 if (nl.item(i).getNodeType() == Node.ELEMENT_NODE) {
                     Element el = (Element) nl.item(i);
                     if (el.getNodeName().contains("GameMove")) {
-                        Integer colorIndex = Integer.parseInt(el.getElementsByTagName("ColorIndex").item(0).getTextContent());
-                        Integer column = Integer.parseInt(el.getElementsByTagName("Column").item(0).getTextContent());
-                        Integer row = Integer.parseInt(el.getElementsByTagName("Row").item(0).getTextContent());
+                        Integer colorIndex = parseInteger(el, "ColorIndex");
+                        Integer column = parseInteger(el, "Column");
+                        Integer row = parseInteger(el, "Row");
                         GameMoveType gameMoveType = GameMoveType.valueOf(el.getElementsByTagName("GameMoveType").item(0).getTextContent());
-                        Integer tries = Integer.parseInt(el.getElementsByTagName("Tries").item(0).getTextContent());
+                        Integer tries = parseInteger(el, "Tries");
                         LocalDateTime localDateTime = LocalDateTime.parse(
                                 el.getElementsByTagName("LocalDateTime").item(0).getTextContent(), dateTimeFormatter);
 
@@ -154,4 +148,10 @@ public class XmlUtils {
 
         return gameMoves;
     }
+
+    private static Integer parseInteger(Element element, String tagName) {
+        String textContent = element.getElementsByTagName(tagName).item(0).getTextContent();
+        return textContent.isEmpty() ? null : Integer.parseInt(textContent);
+    }
+
 }

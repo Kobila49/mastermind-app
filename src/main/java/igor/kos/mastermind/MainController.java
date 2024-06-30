@@ -4,6 +4,8 @@ import igor.kos.mastermind.chat.ChatService;
 import igor.kos.mastermind.exception.ChatServerException;
 import igor.kos.mastermind.jndi.ConfigurationReader;
 import igor.kos.mastermind.model.*;
+import igor.kos.mastermind.thread.GetLastGameMoveThread;
+import igor.kos.mastermind.thread.SaveNewGameMoveThread;
 import igor.kos.mastermind.util.XmlUtils;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -40,7 +42,6 @@ import static igor.kos.mastermind.util.PlayerCommunicationUtil.playerOneSendRequ
 import static igor.kos.mastermind.util.PlayerCommunicationUtil.playerTwoSendRequest;
 import static igor.kos.mastermind.util.XmlUtils.saveGameMovesToXml;
 
-
 @Log4j2
 public class MainController {
 
@@ -49,7 +50,7 @@ public class MainController {
     @Getter
     private static MainController instance;
     private final Color[] colors = {Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.PURPLE};
-    private final Integer[] colorIndices = {null, null, null, null};
+    private Integer[] colorIndices = {null, null, null, null};
     private final Map<Integer, Integer[]> guessMap = new HashMap<>();
     private final Map<Integer, List<Circle>> guessCircles = new HashMap<>();
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
@@ -76,6 +77,8 @@ public class MainController {
     TextField chatMessageTextField;
     @FXML
     AnchorPane chatAnchor;
+    @FXML
+    private Label lastGameMoveLabel;
 
     public MainController() {
         instance = this;
@@ -105,6 +108,10 @@ public class MainController {
             timeline.setCycleCount(Animation.INDEFINITE);
             timeline.playFromStart();
         }
+
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(5), e -> Platform.runLater(new GetLastGameMoveThread(lastGameMoveLabel))));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.playFromStart();
     }
 
     @FXML
@@ -121,7 +128,6 @@ public class MainController {
 
         final var solutionList = Arrays.asList(solution);
 
-
         disableRowCircles(currentRow);
 
         tries++;
@@ -130,10 +136,10 @@ public class MainController {
         gameMove.setTries(tries);
         gameMove.setLocalDateTime(LocalDateTime.now());
         gameMoves.add(gameMove);
+        updateGameState(gameMove);
 
         if (tries == TRY_LIMIT) {
             showAlert(Alert.AlertType.ERROR, "You lost!", "Game over");
-            updateGameState(gameMove);
             return;
         }
 
@@ -153,7 +159,7 @@ public class MainController {
             showAlert(Alert.AlertType.ERROR, "Please fill all circles", ERROR);
             return;
         }
-        solution = colorIndices;
+        solution = colorIndices.clone();
         showAlert(Alert.AlertType.INFORMATION, "Code saved", "Success");
         GameMove gameMove = new GameMove();
         gameMove.setTries(tries);
@@ -188,11 +194,9 @@ public class MainController {
         gameMoves.add(gameMove);
 
         updateGameState(gameMove);
-
     }
 
     private void updateGameState(GameMove gameMove) {
-
         GameState gameState = new GameState();
         gameState.setActivePlayer(player.getPlayerRole());
         gameState.setGuessMap(deepCopyMap(guessMap));
@@ -203,13 +207,15 @@ public class MainController {
         gameState.setGameMoves(gameMoves);
         saveGameMovesToXml(gameMoves);
 
+        SaveNewGameMoveThread saveNewGameMoveThread = new SaveNewGameMoveThread(gameMoves);
+        Thread starter = new Thread(saveNewGameMoveThread);
+        starter.start();
+
         if (player.getPlayerType().equals(PlayerType.PLAYER_ONE)) {
             playerOneSendRequest(gameState);
         } else if (player.getPlayerType().equals(PlayerType.PLAYER_TWO)) {
             playerTwoSendRequest(gameState);
         }
-
-
     }
 
     @FXML
@@ -232,7 +238,6 @@ public class MainController {
         currentRow = 2;
         tries = 0;
         solution = new Integer[]{null, null, null, null};
-
         resetColorIndices();
     }
 
@@ -246,79 +251,101 @@ public class MainController {
     }
 
     private void populateFromGameState(GameState gameState) {
-        this.resetValues();
+        resetValues();
+        updateGameStateFields(gameState);
+
+        if (gameState.getTries() > TRY_LIMIT) {
+            showAlert(Alert.AlertType.INFORMATION, "You won!", "Congratulations");
+            return;
+        }
+
+        setCodeLabel();
+        if (!isSolutionAllNull()) {
+            createSolutionCircles();
+        }
+
+        guessAndFeedbackLabel();
+        if (currentRow > 2) {
+            boolean result = populatePreviousGuesses(gameState);
+            if (result) {
+                return;
+            }
+        }
+
+        if (gameState.getLastMove() != null && !gameState.getLastMove().getGameMoveType().equals(GameMoveType.COLOR_CHANGE)) {
+            addChildren();
+        }
+    }
+
+    private void updateGameStateFields(GameState gameState) {
         guessMap.putAll(gameState.getGuessMap());
         solution = gameState.getSolution();
         tries = gameState.getTries();
         currentRow = gameState.getCurrentRow();
         gameMoves.addAll(gameState.getGameMoves());
+    }
 
-        if (gameState.getTries() > TRY_LIMIT) {
-            showAlert(Alert.AlertType.INFORMATION, "You won!", "Congratulations");
+    private boolean isSolutionAllNull() {
+        return Arrays.stream(solution).allMatch(Objects::isNull);
+    }
+
+    private void createSolutionCircles() {
+        for (int i = 0; i < 4; i++) {
+            Circle circle = new Circle(20);
+            circle.setId(String.valueOf(i));
+            circle.setFill(colors[solution[i]]);
+            solutionCircles.add(circle);
+            guessGrid.add(circle, i, 1);
+            circle.setDisable(true);
+            if (player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
+                circle.setVisible(false);
+            }
         }
+    }
 
-        this.setCodeLabel();
-        boolean allNull = Arrays.stream(solution).allMatch(Objects::isNull);
-        if (!allNull) {
-            for (int i = 0; i < 4; i++) {
-                Circle circle = new Circle(20);
-                circle.setId(String.valueOf(i));
-                circle.setFill(colors[solution[i]]);
-                solutionCircles.add(circle);
-                guessGrid.add(circle, i, 1);
-                if (player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
-                    circle.setDisable(true);
-                    circle.setVisible(false);
-                } else {
-                    circle.setDisable(true);
-                }
+    private boolean populatePreviousGuesses(GameState gameState) {
+        boolean gameOver = false;
+        for (int i = 3; i <= currentRow; i++) {
+            populateChildren(i);
+            if (gameState.getLastMove().getGameMoveType().equals(GameMoveType.CHECK_SOLUTION)) {
+                gameOver = createFeedbackGrid(i);
+            }
+        }
+        return gameOver;
+    }
+
+    private boolean createFeedbackGrid(int rowIndex) {
+        GridPane feedbackGrid = new GridPane();
+        feedbackGrid.setHgap(5);
+        feedbackGrid.setVgap(5);
+
+        int feedbackIndex = 0;
+        int score = 0;
+        for (int j = 0; j < 4; j++) {
+            if (Objects.equals(guessMap.get(rowIndex)[j], solution[j])) {
+                addFeedbackCircle(feedbackGrid, feedbackIndex++, Color.BLACK);
+                score++;
             }
         }
 
-        this.guessAndFeedbackLabel();
-        final var solutionList = Arrays.asList(solution);
-        if (currentRow > 2) {
-            for (int i = 3; i <= currentRow; i++) {
-                this.populateChildren(i);
-                if (gameState.getLastMove().getGameMoveType().equals(GameMoveType.CHECK_SOLUTION)) {
-                    GridPane feedbackGrid = new GridPane();
-                    feedbackGrid.setHgap(5);
-                    feedbackGrid.setVgap(5);
-                    int feedbackIndex = 0;
-                    int score = 0;
-                    for (int j = 0; j < 4; j++) {
-                        if (Objects.equals(guessMap.get(i)[j], solution[j])) {
-                            int row = feedbackIndex / 2;
-                            int column = feedbackIndex % 2;
-                            feedbackGrid.add(new Circle(10, Color.BLACK), column, row);
-                            feedbackIndex++;
-                            score++;
-                        }
-                    }
-
-                    for (int j = 0; j < 4; j++) {
-                        if (!Objects.equals(guessMap.get(i)[j], solution[j]) && solutionList.contains(guessMap.get(i)[j])) {
-                            int row = feedbackIndex / 2;
-                            int column = feedbackIndex % 2;
-                            feedbackGrid.add(new Circle(10, Color.WHITE), column, row);
-                            feedbackIndex++;
-                        }
-                    }
-                    guessGrid.add(feedbackGrid, 4, i);
-                    if (score == 4) {
-                        showSolution();
-                        showAlert(Alert.AlertType.INFORMATION, "You your code was broken, you lost  !", "Unlucky");
-                    }
-                }
+        for (int j = 0; j < 4; j++) {
+            if (!Objects.equals(guessMap.get(rowIndex)[j], solution[j]) && Arrays.asList(solution).contains(guessMap.get(rowIndex)[j])) {
+                addFeedbackCircle(feedbackGrid, feedbackIndex++, Color.WHITE);
             }
         }
 
-        if (gameState.getLastMove() != null) {
-            GameMove lastMove = gameState.getLastMove();
-            if (!lastMove.getGameMoveType().equals(GameMoveType.COLOR_CHANGE)) {
-                this.addChildren();
-            }
+        guessGrid.add(feedbackGrid, 4, rowIndex);
+        if (score == 4) {
+            showSolution();
+            showAlert(Alert.AlertType.INFORMATION, "Your code was broken, you lost!", "Unlucky");
         }
+        return score == 4;
+    }
+
+    private void addFeedbackCircle(GridPane feedbackGrid, int index, Color color) {
+        int row = index / 2;
+        int column = index % 2;
+        feedbackGrid.add(new Circle(10, color), column, row);
     }
 
     private void populateChildren(int i) {
@@ -326,7 +353,7 @@ public class MainController {
         for (int j = 0; j < 4; j++) {
             Circle circle = new Circle(20);
             circle.setFill(guessMap.get(i)[j] != null ? colors[guessMap.get(i)[j]] : Color.WHITE);
-            circle.setId(String.valueOf(j));
+            circle.setId(i + "_" + j);
             circle.setOnMouseClicked(this::handleColorChangeBreaker);
             if (guessMap.get(i).length < 4 && i == currentRow) {
                 circle.setDisable(true);
@@ -340,7 +367,7 @@ public class MainController {
 
     private int changeColor(MouseEvent event) {
         Circle circle = (Circle) event.getSource();
-        int index = Integer.parseInt(circle.getId());
+        int index = Integer.parseInt(circle.getId().split("_")[1]);
         colorIndices[index] = colorIndices[index] != null ? (colorIndices[index] + 1) % colors.length : 0;
         lastColorIndex = colorIndices[index];
         circle.setFill(colors[colorIndices[index]]);
@@ -354,11 +381,8 @@ public class MainController {
         }
     }
 
-
     private void resetColorIndices() {
-        for (int i = 0; i < 4; i++) {
-            colorIndices[i] = null;
-        }
+        Arrays.fill(colorIndices, null);
     }
 
     private void showSolution() {
@@ -404,12 +428,11 @@ public class MainController {
     }
 
     private void initCodeSettingLabel() {
-
         setCodeLabel();
         for (int i = 0; i < 4; i++) {
             Circle circle = new Circle(20);
             circle.setFill(Color.WHITE);
-            circle.setId(String.valueOf(i));
+            circle.setId("1_" + i);
             circle.setOnMouseClicked(this::handleColorChangeMaker);
             if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER) || player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
                 circle.setVisible(false);
@@ -417,7 +440,6 @@ public class MainController {
             }
             guessGrid.add(circle, i, 1);
         }
-
         guessAndFeedbackLabel();
     }
 
@@ -427,7 +449,6 @@ public class MainController {
             guess.setTextFill(Color.WHITE);
             guessGrid.add(guess, i, 2);
         }
-
         Label feedback = new Label("Feedback");
         feedback.setTextFill(Color.WHITE);
         guessGrid.add(feedback, 4, 2);
@@ -450,7 +471,7 @@ public class MainController {
         for (int i = 0; i < 4; i++) {
             Circle circle = new Circle(20);
             circle.setFill(Color.WHITE);
-            circle.setId(String.valueOf(i));
+            circle.setId(currentRow + "_" + i);
             circle.setOnMouseClicked(this::handleColorChangeBreaker);
             guessGrid.add(circle, i, currentRow);
             if (player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
@@ -460,7 +481,6 @@ public class MainController {
         }
         this.guessCircles.put(currentRow, circleArrayList);
     }
-
 
     private void randomizeSolution() {
         for (int i = 0; i < 4; i++) {
@@ -475,9 +495,15 @@ public class MainController {
             circle.setVisible(false);
             circle.setVisible(false);
         }
+
+        GameMove gameMove = new GameMove();
+        gameMove.setTries(tries);
+        gameMove.setGameMoveType(GameMoveType.CODE_SAVE);
+        gameMove.setLocalDateTime(LocalDateTime.now());
+        gameMoves.add(gameMove);
+        updateGameState(gameMove);
         log.info("Solution: {}", Arrays.toString(solution));
     }
-
 
     private void refreshChatTextArea() {
         List<String> chatHistory;
@@ -525,7 +551,6 @@ public class MainController {
         }
     }
 
-
     public void showAlert(Alert.AlertType alertType, String message, String title) {
         Alert alert = new Alert(alertType);
         alert.setTitle(title);
@@ -545,14 +570,75 @@ public class MainController {
 
     public void replayGame() {
         List<GameMove> gameMovesList = XmlUtils.readGameMovesFromXml();
-        AtomicInteger i = new AtomicInteger(0);
-
-        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(2), e -> {
-            GameMove gameMove = gameMovesList.get(i.get());
-            // todo: implement replay logic
-            i.set(i.get() + 1);
+        AtomicInteger moveIndex = new AtomicInteger(0);
+        resetValues();
+        setCodeLabel();
+        guessAndFeedbackLabel();
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            if (moveIndex.get() < gameMovesList.size()) {
+                GameMove gameMove = gameMovesList.get(moveIndex.getAndIncrement());
+                processGameMove(gameMove);
+            }
         }));
         timeline.setCycleCount(gameMovesList.size());
         timeline.playFromStart();
+    }
+
+    private void processGameMove(GameMove gameMove) {
+        switch (gameMove.getGameMoveType()) {
+            case COLOR_CHANGE:
+                processColorChange(gameMove);
+                break;
+            case CODE_SAVE:
+                processCodeSave();
+                break;
+            case CHECK_SOLUTION:
+                processCheckSolution(gameMove);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown game move type: " + gameMove.getGameMoveType());
+        }
+    }
+
+    private void processColorChange(GameMove gameMove) {
+        Circle circle = findOrCreateCircle(gameMove.getRow(), gameMove.getColumn());
+        circle.setFill(colors[gameMove.getColorIndex()]);
+        guessMap.putIfAbsent(gameMove.getRow(), new Integer[4]);
+        guessMap.get(gameMove.getRow())[gameMove.getColumn()] = gameMove.getColorIndex();
+    }
+
+    private void processCodeSave() {
+        if (guessMap.containsKey(1)) {
+            solution = Arrays.copyOf(guessMap.get(1), 4);
+        }
+        currentRow++;
+    }
+
+    private void processCheckSolution(GameMove gameMove) {
+        if(guessMap.containsKey(currentRow)) {
+            colorIndices = Arrays.copyOf(guessMap.get(1), 4);
+        }
+        if (gameMove.getTries() == TRY_LIMIT) {
+            showAlert(Alert.AlertType.ERROR, "You lost!", "Game over");
+            return;
+        }
+        if (cipherSuccessfullyBroken(Arrays.asList(solution))) {
+            return;
+        }
+        currentRow++;
+        addChildren();
+    }
+
+    private Circle findOrCreateCircle(int row, int column) {
+        Circle circle = (Circle) guessGrid.lookup("#" + row + "_" + column);
+        if (circle == null) {
+            circle = new Circle(20);
+            circle.setId(row + "_" + column);
+            if (row == 1) {
+                circle.setVisible(false);
+            }
+            guessGrid.add(circle, column, row);
+        }
+        return circle;
     }
 }

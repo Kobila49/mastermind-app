@@ -9,15 +9,15 @@
       xmlns:fx="http://javafx.com/fxml/1" fx:controller="igor.kos.mastermind.MainController">
     <MenuBar prefWidth="1357.0" VBox.vgrow="NEVER">
         <Menu mnemonicParsing="false" text="File">
-            <MenuItem mnemonicParsing="false" text="New"/>
-            <MenuItem mnemonicParsing="false" text="Open…"/>
-            <MenuItem mnemonicParsing="false" text="Close"/>
+            <MenuItem mnemonicParsing="false" onAction="#resetAll" text="New"/>
+            <MenuItem mnemonicParsing="false" text="Save"/>
+            <MenuItem mnemonicParsing="false" text="Load"/>
             <MenuItem mnemonicParsing="false" onAction="#replayGame" text="Replay" />
         </Menu>
     </MenuBar>
     <SplitPane dividerPositions="0.2505567928730512, 0.7505567928730512" focusTraversable="true" VBox.vgrow="ALWAYS">
         <AnchorPane>
-            <Label alignment="CENTER" layoutX="14.0" layoutY="14.0" minWidth="60.0" style="&#10;" text="Master"
+            <Label fx:id="lastGameMoveLabel" alignment="CENTER" layoutX="14.0" layoutY="14.0" minWidth="60.0" style="&#10;"
                    textAlignment="CENTER">
                 <font>
                     <Font size="18.0" fx:id="x1"/>

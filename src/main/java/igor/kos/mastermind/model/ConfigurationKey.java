@@ -7,9 +7,9 @@ public enum ConfigurationKey {
 
     RMI_HOST("rmi.host"), RMI_PORT("rmi.port");
 
-    private String key;
+    private final String key;
 
-    private ConfigurationKey(String key) {
+    ConfigurationKey(String key) {
         this.key = key;
     }
 

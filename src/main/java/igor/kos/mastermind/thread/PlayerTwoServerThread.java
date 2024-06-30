@@ -40,7 +40,6 @@ public class PlayerTwoServerThread implements Runnable {
             GameState gameState = (GameState) ois.readObject();
             log.info("Player two received the game state!");
             MainController.updateFromGameState(gameState);
-//            oos.writeObject("Player two received the game state - confirmation!");
         } catch (IOException | ClassNotFoundException e) {
             log.error("Error processing client request", e);
         }
