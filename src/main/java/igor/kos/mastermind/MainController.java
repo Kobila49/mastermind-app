@@ -4,10 +4,11 @@ import igor.kos.mastermind.chat.ChatService;
 import igor.kos.mastermind.exception.ChatServerException;
 import igor.kos.mastermind.jndi.ConfigurationReader;
 import igor.kos.mastermind.model.*;
-import igor.kos.mastermind.util.PlayerCommunicationUtil;
+import igor.kos.mastermind.util.XmlUtils;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
@@ -15,7 +16,11 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 import javafx.util.Duration;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.rmi.NotBoundException;
@@ -26,26 +31,28 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static igor.kos.mastermind.MastermindApp.player;
 import static igor.kos.mastermind.util.DeepCopy.deepCopyArray;
 import static igor.kos.mastermind.util.DeepCopy.deepCopyMap;
 import static igor.kos.mastermind.util.PlayerCommunicationUtil.playerOneSendRequest;
 import static igor.kos.mastermind.util.PlayerCommunicationUtil.playerTwoSendRequest;
+import static igor.kos.mastermind.util.XmlUtils.saveGameMovesToXml;
 
 
 @Log4j2
 public class MainController {
-    public static final String ERROR = "Error";
+
+    private static final int TRY_LIMIT = 10;
+    private static final String ERROR = "Error";
+    @Getter
+    private static MainController instance;
     private final Color[] colors = {Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.PURPLE};
     private final Integer[] colorIndices = {null, null, null, null};
-
     private final Map<Integer, Integer[]> guessMap = new HashMap<>();
     private final Map<Integer, List<Circle>> guessCircles = new HashMap<>();
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-
-    private final PlayerRole currentPlayerRole = MastermindApp.player.getPlayerRole();
-    private final PlayerType currentPlayerType = MastermindApp.player.getPlayerType();
-
 
     List<Circle> solutionCircles = new ArrayList<>();
     private Integer[] solution = {null, null, null, null};
@@ -70,13 +77,16 @@ public class MainController {
     @FXML
     AnchorPane chatAnchor;
 
+    public MainController() {
+        instance = this;
+    }
 
     @FXML
     private void initialize() {
         initCodeSettingLabel();
         saveCodeButtonVisibility();
 
-        if (MastermindApp.player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
             randomizeSolution();
             addChildren();
             chatAnchor.setDisable(true);
@@ -91,7 +101,7 @@ public class MainController {
                 throw new ChatServerException("Error connecting to chat server", e);
             }
 
-            Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(2), e -> refreshChatTextArea()));
+            Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshChatTextArea()));
             timeline.setCycleCount(Animation.INDEFINITE);
             timeline.playFromStart();
         }
@@ -99,7 +109,7 @@ public class MainController {
 
     @FXML
     protected void checkCombination() {
-        if (MastermindApp.player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
+        if (player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
             showAlert(Alert.AlertType.ERROR, "You can't check the combination", ERROR);
             return;
         }
@@ -111,31 +121,30 @@ public class MainController {
 
         final var solutionList = Arrays.asList(solution);
 
-        final var result = cipherSuccessfullyBroken(solutionList);
 
         disableRowCircles(currentRow);
-        if (result) {
-            return;
-        }
-        tries++;
-        if (tries == 10) {
-            showAlert(Alert.AlertType.ERROR, "You lost!", "Game over");
-            return;
-        }
 
+        tries++;
         GameMove gameMove = new GameMove();
         gameMove.setGameMoveType(GameMoveType.CHECK_SOLUTION);
         gameMove.setTries(tries);
         gameMove.setLocalDateTime(LocalDateTime.now());
         gameMoves.add(gameMove);
-        updateGameState(gameMove, currentPlayerRole.equals(PlayerRole.CODE_BREAKER) ? currentPlayerType : otherPlayerType(currentPlayerType));
+
+        if (tries == TRY_LIMIT) {
+            showAlert(Alert.AlertType.ERROR, "You lost!", "Game over");
+            updateGameState(gameMove);
+            return;
+        }
+
+        final var result = cipherSuccessfullyBroken(solutionList);
+
+        if (result) {
+            return;
+        }
 
         addChildren();
         resetColorIndices();
-    }
-
-    private PlayerType otherPlayerType(PlayerType currentPlayerType) {
-        return currentPlayerType.equals(PlayerType.PLAYER_ONE) ? PlayerType.PLAYER_TWO : PlayerType.PLAYER_ONE;
     }
 
     @FXML
@@ -151,8 +160,9 @@ public class MainController {
         gameMove.setGameMoveType(GameMoveType.CODE_SAVE);
         gameMove.setLocalDateTime(LocalDateTime.now());
         gameMoves.add(gameMove);
+        updateGameState(gameMove);
         addChildren();
-        updateGameState(gameMove, currentPlayerRole.equals(PlayerRole.CODE_MAKER) ? currentPlayerType : otherPlayerType(currentPlayerType));
+        this.saveCodeButton.setDisable(true);
     }
 
     @FXML
@@ -177,25 +187,25 @@ public class MainController {
         gameMove.setLocalDateTime(LocalDateTime.now());
         gameMoves.add(gameMove);
 
-        updateGameState(gameMove, currentPlayerType);
+        updateGameState(gameMove);
 
     }
 
-    private void updateGameState(GameMove gameMove, PlayerType nextPlayerTurn) {
+    private void updateGameState(GameMove gameMove) {
 
         GameState gameState = new GameState();
-        gameState.setPlayerTurn(nextPlayerTurn);
+        gameState.setActivePlayer(player.getPlayerRole());
         gameState.setGuessMap(deepCopyMap(guessMap));
         gameState.setSolution(deepCopyArray(solution));
         gameState.setTries(tries);
         gameState.setCurrentRow(currentRow);
         gameState.setLastMove(gameMove);
         gameState.setGameMoves(gameMoves);
-        log.info("Game state: {}", gameState);
+        saveGameMovesToXml(gameMoves);
 
-        if(MastermindApp.player.getPlayerType().equals(PlayerType.PLAYER_ONE)) {
+        if (player.getPlayerType().equals(PlayerType.PLAYER_ONE)) {
             playerOneSendRequest(gameState);
-        } else if(MastermindApp.player.getPlayerType().equals(PlayerType.PLAYER_TWO)) {
+        } else if (player.getPlayerType().equals(PlayerType.PLAYER_TWO)) {
             playerTwoSendRequest(gameState);
         }
 
@@ -204,8 +214,9 @@ public class MainController {
 
     @FXML
     protected void resetAll() {
+        this.saveCodeButton.setDisable(false);
         resetValues();
-        if (MastermindApp.player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
             randomizeSolution();
         }
         initCodeSettingLabel();
@@ -217,11 +228,21 @@ public class MainController {
         guessCircles.clear();
         guessMap.clear();
         solutionCircles.clear();
+        gameMoves.clear();
         currentRow = 2;
         tries = 0;
         solution = new Integer[]{null, null, null, null};
 
         resetColorIndices();
+    }
+
+    public static void updateFromGameState(GameState gameState) {
+        Platform.runLater(() -> {
+            MainController controller = getInstance();
+            if (controller != null) {
+                controller.populateFromGameState(gameState);
+            }
+        });
     }
 
     private void populateFromGameState(GameState gameState) {
@@ -232,18 +253,25 @@ public class MainController {
         currentRow = gameState.getCurrentRow();
         gameMoves.addAll(gameState.getGameMoves());
 
+        if (gameState.getTries() > TRY_LIMIT) {
+            showAlert(Alert.AlertType.INFORMATION, "You won!", "Congratulations");
+        }
+
         this.setCodeLabel();
-        for (int i = 0; i < 4; i++) {
-            Circle circle = new Circle(20);
-            circle.setId(String.valueOf(i));
-            circle.setFill(colors[solution[i]]);
-            solutionCircles.add(circle);
-            guessGrid.add(circle, i, 1);
-            if (MastermindApp.player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
-                circle.setDisable(true);
-                circle.setVisible(false);
-            } else {
-                circle.setDisable(true);
+        boolean allNull = Arrays.stream(solution).allMatch(Objects::isNull);
+        if (!allNull) {
+            for (int i = 0; i < 4; i++) {
+                Circle circle = new Circle(20);
+                circle.setId(String.valueOf(i));
+                circle.setFill(colors[solution[i]]);
+                solutionCircles.add(circle);
+                guessGrid.add(circle, i, 1);
+                if (player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
+                    circle.setDisable(true);
+                    circle.setVisible(false);
+                } else {
+                    circle.setDisable(true);
+                }
             }
         }
 
@@ -252,24 +280,43 @@ public class MainController {
         if (currentRow > 2) {
             for (int i = 3; i <= currentRow; i++) {
                 this.populateChildren(i);
-                GridPane feedbackGrid = new GridPane();
-                feedbackGrid.setHgap(5);
-                feedbackGrid.setVgap(5);
-                int column = 0;
-                int row = 0;
-                for (int j = 0; j < 4; j++) {
-                    if (Objects.equals(guessMap.get(i)[j], solution[j])) {
-                        feedbackGrid.add(new Circle(10, Color.BLACK), column, row);
-                    } else if (solutionList.contains(colorIndices[j])) {
-                        feedbackGrid.add(new Circle(10, Color.WHITE), column, row);
+                if (gameState.getLastMove().getGameMoveType().equals(GameMoveType.CHECK_SOLUTION)) {
+                    GridPane feedbackGrid = new GridPane();
+                    feedbackGrid.setHgap(5);
+                    feedbackGrid.setVgap(5);
+                    int feedbackIndex = 0;
+                    int score = 0;
+                    for (int j = 0; j < 4; j++) {
+                        if (Objects.equals(guessMap.get(i)[j], solution[j])) {
+                            int row = feedbackIndex / 2;
+                            int column = feedbackIndex % 2;
+                            feedbackGrid.add(new Circle(10, Color.BLACK), column, row);
+                            feedbackIndex++;
+                            score++;
+                        }
                     }
-                    column++;
-                    if (column == 2) {
-                        column = 0;
-                        row++;
+
+                    for (int j = 0; j < 4; j++) {
+                        if (!Objects.equals(guessMap.get(i)[j], solution[j]) && solutionList.contains(guessMap.get(i)[j])) {
+                            int row = feedbackIndex / 2;
+                            int column = feedbackIndex % 2;
+                            feedbackGrid.add(new Circle(10, Color.WHITE), column, row);
+                            feedbackIndex++;
+                        }
+                    }
+                    guessGrid.add(feedbackGrid, 4, i);
+                    if (score == 4) {
+                        showSolution();
+                        showAlert(Alert.AlertType.INFORMATION, "You your code was broken, you lost  !", "Unlucky");
                     }
                 }
-                guessGrid.add(feedbackGrid, 4, currentRow);
+            }
+        }
+
+        if (gameState.getLastMove() != null) {
+            GameMove lastMove = gameState.getLastMove();
+            if (!lastMove.getGameMoveType().equals(GameMoveType.COLOR_CHANGE)) {
+                this.addChildren();
             }
         }
     }
@@ -284,6 +331,7 @@ public class MainController {
             if (guessMap.get(i).length < 4 && i == currentRow) {
                 circle.setDisable(true);
             }
+            circle.setDisable(player.getPlayerRole().equals(PlayerRole.CODE_MAKER));
             guessGrid.add(circle, j, i);
             circleArrayList.add(circle);
         }
@@ -325,19 +373,24 @@ public class MainController {
         feedbackGrid.setHgap(5);
         feedbackGrid.setVgap(5);
         int score = 0;
-        int column = 0;
-        int row = 0;
+        int feedbackIndex = 0;
+
         for (int i = 0; i < 4; i++) {
             if (Objects.equals(colorIndices[i], solution[i])) {
+                int row = feedbackIndex / 2;
+                int column = feedbackIndex % 2;
                 feedbackGrid.add(new Circle(10, Color.BLACK), column, row);
                 score++;
-            } else if (solutionList.contains(colorIndices[i])) {
-                feedbackGrid.add(new Circle(10, Color.WHITE), column, row);
+                feedbackIndex++;
             }
-            column++;
-            if (column == 2) {
-                column = 0;
-                row++;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            if (!Objects.equals(colorIndices[i], solution[i]) && solutionList.contains(colorIndices[i])) {
+                int row = feedbackIndex / 2;
+                int column = feedbackIndex % 2;
+                feedbackGrid.add(new Circle(10, Color.WHITE), column, row);
+                feedbackIndex++;
             }
         }
         guessGrid.add(feedbackGrid, 4, currentRow);
@@ -358,7 +411,7 @@ public class MainController {
             circle.setFill(Color.WHITE);
             circle.setId(String.valueOf(i));
             circle.setOnMouseClicked(this::handleColorChangeMaker);
-            if (MastermindApp.player.getPlayerType().equals(PlayerType.SINGLE_PLAYER) || MastermindApp.player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
+            if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER) || player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
                 circle.setVisible(false);
                 circle.setManaged(false);
             }
@@ -384,7 +437,7 @@ public class MainController {
         final var label = new Label("Set the code");
         label.setTextFill(Color.WHITE);
         label.setPrefHeight(50);
-        if (MastermindApp.player.getPlayerType().equals(PlayerType.SINGLE_PLAYER) || MastermindApp.player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER) || player.getPlayerRole().equals(PlayerRole.CODE_BREAKER)) {
             label.setVisible(false);
             label.setManaged(false);
         }
@@ -400,7 +453,7 @@ public class MainController {
             circle.setId(String.valueOf(i));
             circle.setOnMouseClicked(this::handleColorChangeBreaker);
             guessGrid.add(circle, i, currentRow);
-            if (MastermindApp.player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
+            if (player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
                 circle.setDisable(true);
             }
             circleArrayList.add(circle);
@@ -415,6 +468,8 @@ public class MainController {
             Circle circle = new Circle(20);
             circle.setFill(colors[solution[i]]);
             solutionCircles.add(circle);
+            lastColorIndex = solution[i];
+            saveGameMoveAndUpdateGameState(i, 1);
             guessGrid.add(circle, i, 1);
             circle.setDisable(true);
             circle.setVisible(false);
@@ -425,7 +480,7 @@ public class MainController {
 
 
     private void refreshChatTextArea() {
-        List<String> chatHistory = null;
+        List<String> chatHistory;
         try {
             chatHistory = stub.returnChatHistory();
         } catch (RemoteException e) {
@@ -444,7 +499,7 @@ public class MainController {
 
     public void sendChatMessage() {
         String chatMessage = chatMessageTextField.getText();
-        String playerName = MastermindApp.player.getPlayerType().name();
+        String playerName = player.getPlayerType().name();
         LocalDateTime now = LocalDateTime.now();
 
         try {
@@ -457,7 +512,7 @@ public class MainController {
     }
 
     private void saveCodeButtonVisibility() {
-        if (MastermindApp.player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
+        if (player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
             saveCodeButton.setVisible(true);
             saveCodeButton.setManaged(true);
             checkCodeButton.setVisible(false);
@@ -475,8 +530,29 @@ public class MainController {
         Alert alert = new Alert(alertType);
         alert.setTitle(title);
         alert.setHeaderText(message);
-        alert.setContentText(message);
 
+        Stage primaryStage = MastermindApp.getPrimaryStage();
+        alert.initOwner(primaryStage);
+        alert.initModality(Modality.APPLICATION_MODAL);
+
+        alert.setOnShown(event -> {
+            Window window = alert.getDialogPane().getScene().getWindow();
+            window.setX(primaryStage.getX() + primaryStage.getWidth() / 2 - window.getWidth() / 2);
+            window.setY(primaryStage.getY() + primaryStage.getHeight() / 2 - window.getHeight() / 2);
+        });
         alert.showAndWait();
+    }
+
+    public void replayGame() {
+        List<GameMove> gameMovesList = XmlUtils.readGameMovesFromXml();
+        AtomicInteger i = new AtomicInteger(0);
+
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(2), e -> {
+            GameMove gameMove = gameMovesList.get(i.get());
+            // todo: implement replay logic
+            i.set(i.get() + 1);
+        }));
+        timeline.setCycleCount(gameMovesList.size());
+        timeline.playFromStart();
     }
 }

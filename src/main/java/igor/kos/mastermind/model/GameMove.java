@@ -21,5 +21,5 @@ public class GameMove implements Serializable {
 
     private LocalDateTime localDateTime;
 
-    private int tries;
+    private Integer tries;
 }

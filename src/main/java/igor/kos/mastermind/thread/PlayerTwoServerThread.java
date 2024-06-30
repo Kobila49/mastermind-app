@@ -1,6 +1,7 @@
 package igor.kos.mastermind.thread;
 
 
+import igor.kos.mastermind.MainController;
 import igor.kos.mastermind.MastermindApp;
 import igor.kos.mastermind.model.GameState;
 import javafx.application.Platform;
@@ -37,10 +38,9 @@ public class PlayerTwoServerThread implements Runnable {
         try (ObjectInputStream ois = new ObjectInputStream(clientSocket.getInputStream());
              ObjectOutputStream oos = new ObjectOutputStream(clientSocket.getOutputStream())) {
             GameState gameState = (GameState) ois.readObject();
-
-
             log.info("Player two received the game state!");
-            oos.writeObject("Player two received the game state - confirmation!");
+            MainController.updateFromGameState(gameState);
+//            oos.writeObject("Player two received the game state - confirmation!");
         } catch (IOException | ClassNotFoundException e) {
             log.error("Error processing client request", e);
         }

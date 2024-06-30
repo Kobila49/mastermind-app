@@ -11,31 +11,8 @@
         <Menu mnemonicParsing="false" text="File">
             <MenuItem mnemonicParsing="false" text="New"/>
             <MenuItem mnemonicParsing="false" text="Open…"/>
-            <Menu mnemonicParsing="false" text="Open Recent"/>
-            <SeparatorMenuItem mnemonicParsing="false"/>
             <MenuItem mnemonicParsing="false" text="Close"/>
-            <MenuItem mnemonicParsing="false" text="Save"/>
-            <MenuItem mnemonicParsing="false" text="Save As…"/>
-            <MenuItem mnemonicParsing="false" text="Revert"/>
-            <SeparatorMenuItem mnemonicParsing="false"/>
-            <MenuItem mnemonicParsing="false" text="Preferences…"/>
-            <SeparatorMenuItem mnemonicParsing="false"/>
-            <MenuItem mnemonicParsing="false" text="Quit"/>
-        </Menu>
-        <Menu mnemonicParsing="false" text="Edit">
-            <MenuItem mnemonicParsing="false" text="Undo"/>
-            <MenuItem mnemonicParsing="false" text="Redo"/>
-            <SeparatorMenuItem mnemonicParsing="false"/>
-            <MenuItem mnemonicParsing="false" text="Cut"/>
-            <MenuItem mnemonicParsing="false" text="Copy"/>
-            <MenuItem mnemonicParsing="false" text="Paste"/>
-            <MenuItem mnemonicParsing="false" text="Delete"/>
-            <SeparatorMenuItem mnemonicParsing="false"/>
-            <MenuItem mnemonicParsing="false" text="Select All"/>
-            <MenuItem mnemonicParsing="false" text="Unselect All"/>
-        </Menu>
-        <Menu mnemonicParsing="false" text="Help">
-            <MenuItem mnemonicParsing="false" text="About MyHelloApp"/>
+            <MenuItem mnemonicParsing="false" onAction="#replayGame" text="Replay" />
         </Menu>
     </MenuBar>
     <SplitPane dividerPositions="0.2505567928730512, 0.7505567928730512" focusTraversable="true" VBox.vgrow="ALWAYS">

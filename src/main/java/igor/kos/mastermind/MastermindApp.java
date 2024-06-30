@@ -10,6 +10,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import lombok.Getter;
 
 import java.io.IOException;
 
@@ -21,6 +22,9 @@ public class MastermindApp extends Application {
 
     public static final String HOST = "localhost";
 
+    @Getter
+    private static Stage primaryStage;
+
     @Override
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(MastermindApp.class.getResource("main-view.fxml"));
@@ -29,6 +33,8 @@ public class MastermindApp extends Application {
         stage.setScene(scene);
         stage.setMaximized(true);
         stage.show();
+
+        MastermindApp.primaryStage = stage;
     }
 
     public static void main(String[] args) {

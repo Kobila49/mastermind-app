@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<GameMoves>
+    <GameMove>
+        <ColorIndex>3</ColorIndex>
+        <Row>1</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>1</Row>
+        <Column>1</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>1</Row>
+        <Column>2</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>2</ColorIndex>
+        <Row>1</Row>
+        <Column>3</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>0</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:32</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:40</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>0</ColorIndex>
+        <Row>3</Row>
+        <Column>1</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:12:54</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>0</ColorIndex>
+        <Row>3</Row>
+        <Column>2</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:10</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>0</ColorIndex>
+        <Row>3</Row>
+        <Column>3</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:11</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>2</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:12</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>3</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:12</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>4</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:12</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>5</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:12</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>0</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>2</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>3</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:13</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>4</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:14</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>5</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:14</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>0</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:15</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:16</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>2</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:17</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>3</ColorIndex>
+        <Row>3</Row>
+        <Column>0</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:18</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>3</Row>
+        <Column>1</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:19</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>3</Row>
+        <Column>2</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:20</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>1</ColorIndex>
+        <Row>3</Row>
+        <Column>3</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:22</LocalDateTime>
+    </GameMove>
+    <GameMove>
+        <ColorIndex>2</ColorIndex>
+        <Row>3</Row>
+        <Column>3</Column>
+        <GameMoveType>COLOR_CHANGE</GameMoveType>
+        <Tries>0</Tries>
+        <LocalDateTime>30.06.2024 21:13:22</LocalDateTime>
+    </GameMove>
+</GameMoves>

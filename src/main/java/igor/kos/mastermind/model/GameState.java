@@ -10,7 +10,7 @@ import java.util.Map;
 @Data
 @RequiredArgsConstructor
 public class GameState implements Serializable {
-  private PlayerType playerTurn;
+  private PlayerRole activePlayer;
   private Map<Integer, Integer[]> guessMap;
   private Integer[] solution;
   private int tries;

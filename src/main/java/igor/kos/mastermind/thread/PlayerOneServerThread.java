@@ -1,6 +1,7 @@
 package igor.kos.mastermind.thread;
 
 
+import igor.kos.mastermind.MainController;
 import igor.kos.mastermind.MastermindApp;
 import igor.kos.mastermind.model.GameState;
 import javafx.application.Platform;
@@ -16,10 +17,10 @@ import java.net.Socket;
 public class PlayerOneServerThread implements Runnable {
     @Override
     public void run() {
-        playerTwoAcceptRequests();
+        playerOneAcceptRequests();
     }
 
-    private static void playerTwoAcceptRequests() {
+    private static void playerOneAcceptRequests() {
         try (ServerSocket serverSocket = new ServerSocket(MastermindApp.PLAYER_ONE_SERVER_PORT)){
             log.info("Server listening on port: {}", serverSocket.getLocalPort());
 
@@ -35,13 +36,11 @@ public class PlayerOneServerThread implements Runnable {
 
     private static void processSerializableClient(Socket clientSocket) {
         try (ObjectInputStream ois = new ObjectInputStream(clientSocket.getInputStream());
-             ObjectOutputStream oos = new ObjectOutputStream(clientSocket.getOutputStream());){
+             ObjectOutputStream oos = new ObjectOutputStream(clientSocket.getOutputStream())){
             GameState gameState = (GameState)ois.readObject();
-
-            // todo: implement changing game state
-
-            log.info("Player two received the game state!");
-            oos.writeObject("Player two received the game state - confirmation!");
+            log.info("Player one received the game state!");
+            MainController.updateFromGameState(gameState);
+//            oos.writeObject("Player one received the game state - confirmation!");
         } catch (IOException | ClassNotFoundException e) {
             log.warn("Error processing client request", e);
         }
