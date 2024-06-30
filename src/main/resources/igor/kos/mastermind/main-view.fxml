@@ -10,8 +10,8 @@
     <MenuBar prefWidth="1357.0" VBox.vgrow="NEVER">
         <Menu mnemonicParsing="false" text="File">
             <MenuItem mnemonicParsing="false" onAction="#resetAll" text="New"/>
-            <MenuItem mnemonicParsing="false" text="Save"/>
-            <MenuItem mnemonicParsing="false" text="Load"/>
+            <MenuItem mnemonicParsing="false" onAction="#saveGame" text="Save"/>
+            <MenuItem mnemonicParsing="false" onAction="#loadGame" text="Load"/>
             <MenuItem mnemonicParsing="false" onAction="#replayGame" text="Replay" />
         </Menu>
     </MenuBar>

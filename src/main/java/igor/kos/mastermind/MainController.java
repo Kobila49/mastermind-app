@@ -25,6 +25,7 @@ import javafx.util.Duration;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
+import java.io.*;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -86,32 +87,9 @@ public class MainController {
 
     @FXML
     private void initialize() {
-        initCodeSettingLabel();
-        saveCodeButtonVisibility();
-
-        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
-            randomizeSolution();
-            addChildren();
-            chatAnchor.setDisable(true);
-        } else {
-            try {
-                String rmiPort = ConfigurationReader.getValue(ConfigurationKey.RMI_PORT);
-                String serverName = ConfigurationReader.getValue(ConfigurationKey.RMI_HOST);
-                Registry registry = LocateRegistry.getRegistry(serverName, Integer.parseInt(rmiPort));
-                stub = (ChatService) registry.lookup(ChatService.REMOTE_OBJECT_NAME);
-                stub.clearChatHistory();
-            } catch (RemoteException | NotBoundException e) {
-                throw new ChatServerException("Error connecting to chat server", e);
-            }
-
-            Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshChatTextArea()));
-            timeline.setCycleCount(Animation.INDEFINITE);
-            timeline.playFromStart();
-        }
-
-        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(5), e -> Platform.runLater(new GetLastGameMoveThread(lastGameMoveLabel))));
-        timeline.setCycleCount(Animation.INDEFINITE);
-        timeline.playFromStart();
+        setupGame();
+        setupChat();
+        setupGameMoveRefresh();
     }
 
     @FXML
@@ -168,6 +146,7 @@ public class MainController {
         gameMoves.add(gameMove);
         updateGameState(gameMove);
         addChildren();
+        this.disableSolutionCircles();
         this.saveCodeButton.setDisable(true);
     }
 
@@ -181,6 +160,62 @@ public class MainController {
     protected void handleColorChangeMaker(MouseEvent event) {
         int index = changeColor(event);
         saveGameMoveAndUpdateGameState(index, 1);
+    }
+
+    @FXML
+    protected void resetAll() {
+        this.saveCodeButton.setDisable(false);
+        resetValues();
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            randomizeSolution();
+        }
+        initCodeSettingLabel();
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            addChildren();
+        }
+    }
+
+    private void setupGame() {
+        initCodeSettingLabel();
+        saveCodeButtonVisibility();
+
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            randomizeSolution();
+            addChildren();
+            chatAnchor.setDisable(true);
+        }
+    }
+
+    private void setupChat() {
+        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            return;
+        }
+        try {
+            setupChatService();
+            startChatRefresh();
+        } catch (RemoteException | NotBoundException e) {
+            throw new ChatServerException("Error connecting to chat server", e);
+        }
+    }
+
+    private void setupChatService() throws RemoteException, NotBoundException {
+        String rmiPort = ConfigurationReader.getValue(ConfigurationKey.RMI_PORT);
+        String serverName = ConfigurationReader.getValue(ConfigurationKey.RMI_HOST);
+        Registry registry = LocateRegistry.getRegistry(serverName, Integer.parseInt(rmiPort));
+        stub = (ChatService) registry.lookup(ChatService.REMOTE_OBJECT_NAME);
+        stub.clearChatHistory();
+    }
+
+    private void startChatRefresh() {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshChatTextArea()));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.playFromStart();
+    }
+
+    private void setupGameMoveRefresh() {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(5), e -> Platform.runLater(new GetLastGameMoveThread(lastGameMoveLabel))));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.playFromStart();
     }
 
     private void saveGameMoveAndUpdateGameState(int index, int row) {
@@ -197,14 +232,7 @@ public class MainController {
     }
 
     private void updateGameState(GameMove gameMove) {
-        GameState gameState = new GameState();
-        gameState.setActivePlayer(player.getPlayerRole());
-        gameState.setGuessMap(deepCopyMap(guessMap));
-        gameState.setSolution(deepCopyArray(solution));
-        gameState.setTries(tries);
-        gameState.setCurrentRow(currentRow);
-        gameState.setLastMove(gameMove);
-        gameState.setGameMoves(gameMoves);
+        GameState gameState = getGameState(gameMove);
         saveGameMovesToXml(gameMoves);
 
         SaveNewGameMoveThread saveNewGameMoveThread = new SaveNewGameMoveThread(gameMoves);
@@ -218,15 +246,48 @@ public class MainController {
         }
     }
 
-    @FXML
-    protected void resetAll() {
-        this.saveCodeButton.setDisable(false);
-        resetValues();
-        if (player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
-            randomizeSolution();
+    private GameState getGameState(GameMove gameMove) {
+        GameState gameState = new GameState();
+        gameState.setActivePlayer(player.getPlayerRole());
+        gameState.setGuessMap(deepCopyMap(guessMap));
+        gameState.setSolution(deepCopyArray(solution));
+        gameState.setTries(tries);
+        gameState.setCurrentRow(currentRow);
+        gameState.setLastMove(gameMove);
+        gameState.setGameMoves(gameMoves);
+        return gameState;
+    }
+
+    public void saveGame() {
+        if (!player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            showAlert(Alert.AlertType.ERROR, "Only available in single player mode", ERROR);
+            return;
         }
-        initCodeSettingLabel();
-        addChildren();
+        GameState gameStateToSave = getGameState(gameMoves.getLast());
+
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(GameState.SAVE_GAME_FILE_NAME))) {
+            oos.writeObject(gameStateToSave);
+            showAlert(Alert.AlertType.INFORMATION, "Game was successfully saved!", "Game Saved");
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public void loadGame() {
+        if (!player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            showAlert(Alert.AlertType.ERROR, "Only available in single player mode", ERROR);
+            return;
+        }
+        resetValues();
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(GameState.SAVE_GAME_FILE_NAME))) {
+            GameState gameStateToLoad = (GameState) ois.readObject();
+            populateFromGameState(gameStateToLoad, true);
+            showAlert(Alert.AlertType.INFORMATION, "Game was successfully loaded!", "Game Loaded");
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } catch (ClassNotFoundException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private void resetValues() {
@@ -245,12 +306,12 @@ public class MainController {
         Platform.runLater(() -> {
             MainController controller = getInstance();
             if (controller != null) {
-                controller.populateFromGameState(gameState);
+                controller.populateFromGameState(gameState, false);
             }
         });
     }
 
-    private void populateFromGameState(GameState gameState) {
+    private void populateFromGameState(GameState gameState, boolean loadedGame) {
         resetValues();
         updateGameStateFields(gameState);
 
@@ -266,13 +327,13 @@ public class MainController {
 
         guessAndFeedbackLabel();
         if (currentRow > 2) {
-            boolean result = populatePreviousGuesses(gameState);
+            boolean result = populatePreviousGuesses(gameState, loadedGame);
             if (result) {
                 return;
             }
         }
 
-        if (gameState.getLastMove() != null && !gameState.getLastMove().getGameMoveType().equals(GameMoveType.COLOR_CHANGE)) {
+        if (!loadedGame && gameState.getLastMove() != null && !gameState.getLastMove().getGameMoveType().equals(GameMoveType.COLOR_CHANGE)) {
             addChildren();
         }
     }
@@ -303,11 +364,11 @@ public class MainController {
         }
     }
 
-    private boolean populatePreviousGuesses(GameState gameState) {
+    private boolean populatePreviousGuesses(GameState gameState, boolean loadedGame) {
         boolean gameOver = false;
         for (int i = 3; i <= currentRow; i++) {
             populateChildren(i);
-            if (gameState.getLastMove().getGameMoveType().equals(GameMoveType.CHECK_SOLUTION)) {
+            if (gameState.getLastMove().getGameMoveType().equals(GameMoveType.CHECK_SOLUTION) || loadedGame) {
                 gameOver = createFeedbackGrid(i);
             }
         }
@@ -315,6 +376,10 @@ public class MainController {
     }
 
     private boolean createFeedbackGrid(int rowIndex) {
+
+        if (!guessMap.containsKey(rowIndex)) {
+            return false;
+        }
         GridPane feedbackGrid = new GridPane();
         feedbackGrid.setHgap(5);
         feedbackGrid.setVgap(5);
@@ -349,16 +414,24 @@ public class MainController {
     }
 
     private void populateChildren(int i) {
-        final var circleArrayList = new ArrayList<Circle>();
+        var circleArrayList = new ArrayList<Circle>();
+        if (!guessMap.containsKey(i)) {
+            circleArrayList = getChildrenCircles();
+            this.guessCircles.put(i, circleArrayList);
+            return;
+        }
         for (int j = 0; j < 4; j++) {
             Circle circle = new Circle(20);
             circle.setFill(guessMap.get(i)[j] != null ? colors[guessMap.get(i)[j]] : Color.WHITE);
             circle.setId(i + "_" + j);
             circle.setOnMouseClicked(this::handleColorChangeBreaker);
-            if (guessMap.get(i).length < 4 && i == currentRow) {
+            if (guessMap.get(i).length == 4 && i < currentRow) {
                 circle.setDisable(true);
             }
-            circle.setDisable(player.getPlayerRole().equals(PlayerRole.CODE_MAKER));
+
+            if (player.getPlayerRole().equals(PlayerRole.CODE_MAKER)) {
+                circle.setDisable(true);
+            }
             guessGrid.add(circle, j, i);
             circleArrayList.add(circle);
         }
@@ -373,6 +446,12 @@ public class MainController {
         circle.setFill(colors[colorIndices[index]]);
         this.guessMap.put(currentRow, new Integer[]{colorIndices[0], colorIndices[1], colorIndices[2], colorIndices[3]});
         return index;
+    }
+
+    private void disableSolutionCircles() {
+        for (Circle circle : solutionCircles) {
+            circle.setDisable(true);
+        }
     }
 
     private void disableRowCircles(int index) {
@@ -438,6 +517,7 @@ public class MainController {
                 circle.setVisible(false);
                 circle.setManaged(false);
             }
+            solutionCircles.add(circle);
             guessGrid.add(circle, i, 1);
         }
         guessAndFeedbackLabel();
@@ -467,6 +547,11 @@ public class MainController {
 
     private void addChildren() {
         currentRow++;
+        final var circleArrayList = getChildrenCircles();
+        this.guessCircles.put(currentRow, circleArrayList);
+    }
+
+    private ArrayList<Circle> getChildrenCircles() {
         final var circleArrayList = new ArrayList<Circle>();
         for (int i = 0; i < 4; i++) {
             Circle circle = new Circle(20);
@@ -479,7 +564,7 @@ public class MainController {
             }
             circleArrayList.add(circle);
         }
-        this.guessCircles.put(currentRow, circleArrayList);
+        return circleArrayList;
     }
 
     private void randomizeSolution() {
@@ -569,6 +654,10 @@ public class MainController {
     }
 
     public void replayGame() {
+        if (!player.getPlayerType().equals(PlayerType.SINGLE_PLAYER)) {
+            showAlert(Alert.AlertType.ERROR, "Only available in single player mode", ERROR);
+            return;
+        }
         List<GameMove> gameMovesList = XmlUtils.readGameMovesFromXml();
         AtomicInteger moveIndex = new AtomicInteger(0);
         resetValues();
@@ -615,7 +704,7 @@ public class MainController {
     }
 
     private void processCheckSolution(GameMove gameMove) {
-        if(guessMap.containsKey(currentRow)) {
+        if (guessMap.containsKey(currentRow)) {
             colorIndices = Arrays.copyOf(guessMap.get(1), 4);
         }
         if (gameMove.getTries() == TRY_LIMIT) {
@@ -625,7 +714,6 @@ public class MainController {
         if (cipherSuccessfullyBroken(Arrays.asList(solution))) {
             return;
         }
-        currentRow++;
         addChildren();
     }
 

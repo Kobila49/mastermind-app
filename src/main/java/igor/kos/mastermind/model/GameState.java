@@ -10,6 +10,9 @@ import java.util.Map;
 @Data
 @RequiredArgsConstructor
 public class GameState implements Serializable {
+
+  public static final String SAVE_GAME_FILE_NAME = "src/main/resources/saveGame/gameSave.dat";
+
   private PlayerRole activePlayer;
   private Map<Integer, Integer[]> guessMap;
   private Integer[] solution;
