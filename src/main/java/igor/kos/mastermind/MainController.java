@@ -282,10 +282,9 @@ public class MainController {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(GameState.SAVE_GAME_FILE_NAME))) {
             GameState gameStateToLoad = (GameState) ois.readObject();
             populateFromGameState(gameStateToLoad, true);
+            saveGameMovesToXml(gameMoves);
             showAlert(Alert.AlertType.INFORMATION, "Game was successfully loaded!", "Game Loaded");
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        } catch (ClassNotFoundException ex) {
+        } catch (IOException | ClassNotFoundException ex) {
             ex.printStackTrace();
         }
     }
@@ -663,7 +662,7 @@ public class MainController {
         resetValues();
         setCodeLabel();
         guessAndFeedbackLabel();
-        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(0.5), e -> {
             if (moveIndex.get() < gameMovesList.size()) {
                 GameMove gameMove = gameMovesList.get(moveIndex.getAndIncrement());
                 processGameMove(gameMove);
